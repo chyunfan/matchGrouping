@@ -77,6 +77,7 @@
       <div>
         <label>选择你的队伍：</label>
         <select id="picker"></select>
+        <div class="muted" style="margin-top:6px;font-size:12px">必选项：请先选择本队，再点击「开始抽签」</div>
       </div>
     </div>
     <div class="drawcard" id="drawcard">
@@ -165,6 +166,11 @@
     const remaining = teams.filter(t => drawn[t] === undefined);
     const opts = myTeam && drawn[myTeam] !== undefined ? [myTeam] : remaining;
     if(opts.length === 0){ sel.innerHTML = "<option>已全部抽签</option>"; $("drawBtn").disabled=true; return; }
+    // 默认空选项（占位提示）：必须手动选择队伍后才能抽签（前置必选项）
+    const ph = document.createElement("option");
+    ph.value = ""; ph.disabled = true; ph.selected = true;
+    ph.textContent = "请选择你的队伍";
+    sel.appendChild(ph);
     opts.forEach(t=>{ const o=document.createElement("option"); o.value=t; o.textContent=t; sel.appendChild(o); });
     if(prev && opts.includes(prev)) sel.value = prev;
     $("drawBtn").disabled = false;
@@ -209,6 +215,15 @@
     $("hint").textContent = `🎉 你已抽中定位号 ${number}，等待其他队长抽签…`;
   }
 
+  // 重置本地「我的抽签结果」UI：翻回牌面、清号码、清提示
+  function resetMyResultUI(){
+    $("drawcard").classList.remove("flipped");
+    $("myNo").textContent = "—";
+    $("myTag").textContent = "";
+    $("hint").textContent = "";
+    $("drawBtn").disabled = false;
+  }
+
   async function refresh(){
     const res = await api("/api/state");
     const data = res.data || {};
@@ -224,6 +239,11 @@
     // 已抽签的本队结果
     if(myTeam && data.drawn[myTeam] !== undefined){
       showMyResult(myTeam, data.drawn[myTeam]);
+    } else if(myTeam && data.drawn[myTeam] === undefined){
+      // 我之前抽过，但现在服务端已清空（被组织者重置）→ 清掉本地结果并刷新下拉
+      localStorage.removeItem("myTeam"); myTeam = "";
+      resetMyResultUI();
+      renderPicker(data.teams, data.drawn);
     }
     if(data.allDrawn && data.schedule){
       renderSchedule(data.schedule);
@@ -234,7 +254,7 @@
 
   async function doDraw(){
     const team = $("picker").value;
-    if(!team){ toast("请先选择队伍"); return; }
+    if(!team){ toast("请先在「选择你的队伍」中选择本队，再开始抽签","error"); return; }
     $("drawBtn").disabled = true;
     const { status, data } = await api("/api/draw","POST",{ team });
     if(status === 200){
@@ -264,7 +284,7 @@
     const key = $("orgKey").value.trim();
     if(!key){ toast("请先输入组织者密钥","error"); return; }
     const { status, data } = await api("/api/reset","POST",{ key });
-    if(status===200){ localStorage.removeItem("myTeam"); myTeam=""; toast("已重置"); await refresh(); }
+    if(status===200){ localStorage.removeItem("myTeam"); myTeam=""; resetMyResultUI(); toast("已重置"); await refresh(); }
     else toast((data.error||"重置失败") + (status===0?"":"（"+status+"）"),"error");
   }
 
