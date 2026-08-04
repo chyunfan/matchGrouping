@@ -1,10 +1,13 @@
 {
   "name": "basketball-round-robin-draw",
   "version": "1.0.0",
-  "description": "5队篮球单循环远程抽签赛程程序（零依赖 Node，跨设备实时同步）",
+  "description": "5队篮球单循环远程抽签赛程程序（Vercel Serverless 版 + Node 本地版）",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
+  },
+  "dependencies": {
+    "@vercel/kv": "^1.0.1"
   },
   "engines": {
     "node": ">=18"
