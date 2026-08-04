@@ -132,11 +132,24 @@
     toast._timer = setTimeout(()=>t.classList.remove("show"), 3500);
   }
 
+  // 根据当前页面路径自动推导 API 前缀：
+  //  - 页面在 /matchgrouping/  → 前缀 /matchgrouping，接口走 /matchgrouping/api/...
+  //  - 页面在 /              → 前缀为空，接口走 /api/...
+  // 这样无论 Vercel 把项目放在根目录还是子目录，前端都能正确调用。
+  function apiBase(){
+    let p = location.pathname
+      .replace(/\/[^/]*\.[^/]*$/, "") // 去掉末尾文件名（index.html 等）
+      .replace(/\/$/, "");            // 去掉结尾斜杠
+    return p; // 形如 "/matchgrouping" 或 ""
+  }
+  const API_BASE = apiBase();
+
   async function api(path, method="GET", body){
     try {
       const opt = { method, headers:{"Content-Type":"application/json"} };
       if(body) opt.body = JSON.stringify(body);
-      const r = await fetch(path, opt);
+      const url = API_BASE + path; // path 形如 "/api/state"
+      const r = await fetch(url, opt);
       let data = {};
       try { data = await r.json(); } catch {}
       return { status:r.status, data };
