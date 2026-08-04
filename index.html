@@ -108,8 +108,8 @@
       <label>队伍名称（抽签前可改，逗号或换行分隔共 5 个）：</label>
       <input type="text" id="orgTeams" placeholder="红队,蓝队,黄队,绿队,黑队">
       <label>密钥：</label>
-      <input type="text" id="orgKey" placeholder="默认 admin（在 server.js 中可改）">
-      <div class="muted" style="margin:-4px 0 8px">提示：默认密钥为 <b>admin</b></div>
+      <input type="text" id="orgKey" placeholder="请输入组织者密钥（默认 admin）">
+      <div class="muted" style="margin:-4px 0 8px">提示：组织者密钥（默认 <b>admin</b>，可在 server.js 修改）；保存队名 / 重置全部抽签 <b>均须填写</b></div>
       <div class="row">
         <button class="btn ghost" onclick="setupTeams()">保存队名</button>
         <button class="btn ghost" onclick="resetAll()">重置全部抽签</button>
@@ -233,7 +233,8 @@
   }
 
   async function setupTeams(){
-    const key = $("orgKey").value.trim() || "admin";
+    const key = $("orgKey").value.trim();
+    if(!key){ toast("请先输入组织者密钥","error"); return; }
     const names = $("orgTeams").value.split(/[,\n，]/).map(s=>s.trim()).filter(Boolean);
     if(names.length !== 5){ toast(`需要正好 5 个队名，当前 ${names.length} 个`,"error"); return; }
     const { status, data } = await api("/api/setup","POST",{ key, teams:names });
@@ -241,7 +242,8 @@
     else toast((data.error||"保存失败") + (status===0?"":"（"+status+"）"),"error");
   }
   async function resetAll(){
-    const key = $("orgKey").value.trim() || "admin";
+    const key = $("orgKey").value.trim();
+    if(!key){ toast("请先输入组织者密钥","error"); return; }
     const { status, data } = await api("/api/reset","POST",{ key });
     if(status===200){ localStorage.removeItem("myTeam"); myTeam=""; toast("已重置"); await refresh(); }
     else toast((data.error||"重置失败") + (status===0?"":"（"+status+"）"),"error");
