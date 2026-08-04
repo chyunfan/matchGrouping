@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5队篮球远程抽签</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#fff; --ink:#1f2933; --muted:#6b7280;
+    --line:#e3e8f0; --brand:#e8502e; --brand2:#2b6cb0; --ok:#2f9e44;
+    --shadow:0 6px 18px rgba(31,41,51,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,Roboto,sans-serif;
+    line-height:1.55;padding:18px;max-width:820px;margin:0 auto}
+  h1{font-size:21px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:4px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:16px 18px;box-shadow:var(--shadow);margin-bottom:16px}
+  h2{font-size:16px;margin:0 0 10px;border-left:4px solid var(--brand);padding-left:10px}
+  label{font-size:13px;color:var(--muted)}
+  select,input[type=text]{padding:9px 11px;border:1px solid var(--line);border-radius:9px;
+    width:100%;font-size:14px;background:#fff;color:var(--ink);margin-top:4px}
+  select:focus,input:focus{outline:none;border-color:var(--brand2)}
+  .btn{display:inline-block;border:none;border-radius:9px;padding:10px 16px;font-size:14px;
+    font-weight:700;cursor:pointer;color:#fff;background:var(--brand);margin-top:12px}
+  .btn.ghost{background:#fff;color:var(--brand2);border:1px solid var(--brand2)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row>*{flex:1;min-width:140px}
+  /* 抽签翻牌 */
+  .drawcard{width:120px;height:160px;margin:14px auto 6px;perspective:800px;cursor:default}
+  .drawcard .face{position:absolute;inset:0;border-radius:14px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;backface-visibility:hidden;transition:transform .6s;font-weight:800}
+  .drawcard .back{background:linear-gradient(135deg,#e8502e,#ff8a5c);color:#fff;font-size:40px;
+    box-shadow:inset 0 0 0 4px rgba(255,255,255,.25)}
+  .drawcard .front{background:#fff;border:2px solid var(--line);color:var(--brand);font-size:54px;
+    transform:rotateY(180deg)}
+  .drawcard.flipped .back{transform:rotateY(180deg)}
+  .drawcard.flipped .front{transform:rotateY(0)}
+  .drawcard .tag{font-size:12px;color:var(--muted);font-weight:600;margin-top:6px}
+  /* 状态看板 */
+  .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:6px}
+  .slot{border:1px solid var(--line);border-radius:11px;padding:12px;text-align:center;background:#fafbfc}
+  .slot.done{background:#eafaf0;border-color:#b7e4c7}
+  .slot .nm{font-weight:700;font-size:14px}
+  .slot .no{font-size:26px;font-weight:800;color:var(--brand);margin-top:4px}
+  .slot .no.wait{color:var(--muted);font-size:14px;font-weight:600}
+  .my{font-size:11px;color:var(--brand2);font-weight:700;margin-top:2px}
+  /* 赛程 */
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+  th,td{border:1px solid var(--line);padding:10px 8px;text-align:center}
+  th{background:#f1f5f9;color:#334155;font-weight:700}
+  tr:nth-child(even) td{background:#fafbfc}
+  .rest{color:var(--brand);font-weight:700}
+  .muted{color:var(--muted);font-size:13px}
+  .badge{display:inline-block;background:var(--ok);color:#fff;border-radius:20px;padding:2px 10px;
+    font-size:12px;font-weight:700}
+  .org{font-size:13px}
+  .org input{margin-bottom:8px}
+  details summary{cursor:pointer;color:var(--brand2);font-weight:700;font-size:13px}
+  .toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);background:#1f2933;color:#fff;
+    padding:12px 22px;border-radius:10px;font-size:15px;font-weight:600;opacity:0;transition:opacity .3s;
+    pointer-events:none;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.25);min-width:200px;text-align:center}
+  .toast.show{opacity:1}
+  @media print{.org,.drawcard,.row{display:none}}
+</style>
+</head>
+<body>
+  <h1>🏀 5队篮球 · 远程抽签</h1>
+  <div class="sub">5 位队长各自打开本页面抽自己的队；进度实时同步，刷新可见；5 队抽完自动公布循环赛程。</div>
+
+  <div class="panel">
+    <h2>① 选择你的队伍并抽签</h2>
+    <div class="row">
+      <div>
+        <label>选择你的队伍：</label>
+        <select id="picker"></select>
+      </div>
+    </div>
+    <div class="drawcard" id="drawcard">
+      <div class="face back">?</div>
+      <div class="face front"><span id="myNo">—</span><div class="tag" id="myTag"></div></div>
+    </div>
+    <div style="text-align:center">
+      <button class="btn" id="drawBtn" onclick="doDraw()">开始抽签</button>
+    </div>
+    <div class="muted" id="hint" style="text-align:center;margin-top:6px"></div>
+  </div>
+
+  <div class="panel">
+    <h2>② 抽签进度（实时） <span class="badge" id="cnt">0 / 5</span></h2>
+    <div class="board" id="board"></div>
+    <div class="muted" style="margin-top:8px">提示：可随时刷新本页面查看最新进度；已抽签的队伍号码会保留。</div>
+  </div>
+
+  <div class="panel" id="schedPanel" style="display:none">
+    <h2>③ 循环赛程表（已公布）</h2>
+    <div class="sub">国际篮联单循环轮转编排：每天 2 场，1 队轮空，5 天每队恰好轮空 1 次。</div>
+    <div id="schedOut"></div>
+    <button class="btn" onclick="window.print()">🖨 打印 / 导出赛程</button>
+  </div>
+
+  <details class="panel org">
+    <summary>组织者设置（设置队名 / 重置，需密钥）</summary>
+    <div style="margin-top:10px">
+      <label>队伍名称（抽签前可改，逗号或换行分隔共 5 个）：</label>
+      <input type="text" id="orgTeams" placeholder="红队,蓝队,黄队,绿队,黑队">
+      <label>密钥：</label>
+      <input type="text" id="orgKey" placeholder="默认 admin（在 server.js 中可改）">
+      <div class="muted" style="margin:-4px 0 8px">提示：默认密钥为 <b>admin</b></div>
+      <div class="row">
+        <button class="btn ghost" onclick="setupTeams()">保存队名</button>
+        <button class="btn ghost" onclick="resetAll()">重置全部抽签</button>
+      </div>
+    </div>
+  </details>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let myTeam = localStorage.getItem("myTeam") || "";
+
+  function toast(msg, type="info"){
+    const t=$("toast");
+    t.textContent = msg;
+    t.style.background = type==="error" ? "#c92a2a" : "#1f2933";
+    t.classList.add("show");
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(()=>t.classList.remove("show"), 3500);
+  }
+
+  async function api(path, method="GET", body){
+    try {
+      const opt = { method, headers:{"Content-Type":"application/json"} };
+      if(body) opt.body = JSON.stringify(body);
+      const r = await fetch(path, opt);
+      let data = {};
+      try { data = await r.json(); } catch {}
+      return { status:r.status, data };
+    } catch (e) {
+      return { status:0, data:{ error:"网络错误，无法连接到服务器（请检查是否已启动 server.js）" } };
+    }
+  }
+
+  function renderPicker(teams, drawn){
+    const sel = $("picker");
+    const prev = myTeam;
+    sel.innerHTML = "";
+    const remaining = teams.filter(t => drawn[t] === undefined);
+    const opts = myTeam && drawn[myTeam] !== undefined ? [myTeam] : remaining;
+    if(opts.length === 0){ sel.innerHTML = "<option>已全部抽签</option>"; $("drawBtn").disabled=true; return; }
+    opts.forEach(t=>{ const o=document.createElement("option"); o.value=t; o.textContent=t; sel.appendChild(o); });
+    if(prev && opts.includes(prev)) sel.value = prev;
+    $("drawBtn").disabled = false;
+  }
+
+  function renderBoard(teams, drawn, allDrawn){
+    const b = $("board"); b.innerHTML="";
+    teams.forEach(t=>{
+      const done = drawn[t] !== undefined;
+      const isMe = t === myTeam;
+      const d = document.createElement("div");
+      d.className = "slot" + (done?" done":"");
+      d.innerHTML = `<div class="nm">${t}</div>` +
+        (done ? `<div class="no">${drawn[t]}</div>` : `<div class="no wait">未抽签</div>`) +
+        (isMe ? `<div class="my">这是我</div>` : "");
+      b.appendChild(d);
+    });
+    const n = teams.filter(t=>drawn[t]!==undefined).length;
+    $("cnt").textContent = n + " / 5";
+    return allDrawn;
+  }
+
+  let firstLoad = true;
+  function renderSchedule(schedule){
+    let html = `<table><thead><tr><th>比赛日</th><th>第 1 场</th><th>第 2 场</th><th>轮空</th></tr></thead><tbody>`;
+    schedule.forEach((d,i)=>{
+      html += `<tr><td><b>第 ${i+1} 天</b></td>
+        <td>${d.matches[0][0]} <span class="muted">VS</span> ${d.matches[0][1]}</td>
+        <td>${d.matches[1][0]} <span class="muted">VS</span> ${d.matches[1][1]}</td>
+        <td class="rest">${d.bye}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+    $("schedOut").innerHTML = html;
+    $("schedPanel").style.display = "block";
+  }
+
+  function showMyResult(team, number){
+    $("myNo").textContent = number;
+    $("myTag").textContent = team + " 的定位号";
+    $("drawcard").classList.add("flipped");
+    $("drawBtn").disabled = true;
+    $("hint").textContent = `🎉 你已抽中定位号 ${number}，等待其他队长抽签…`;
+  }
+
+  async function refresh(){
+    const { data } = await api("/api/state");
+    // 首次加载：把当前队名真正填入输入框（避免只占位列、值为空导致保存失败）
+    if(firstLoad){ $("orgTeams").value = data.teams.join(", "); firstLoad = false; }
+    renderPicker(data.teams, data.drawn);
+    renderBoard(data.teams, data.drawn, data.allDrawn);
+    // 已抽签的本队结果
+    if(myTeam && data.drawn[myTeam] !== undefined){
+      showMyResult(myTeam, data.drawn[myTeam]);
+    }
+    if(data.allDrawn && data.schedule){
+      renderSchedule(data.schedule);
+    } else {
+      $("schedPanel").style.display = "none";
+    }
+  }
+
+  async function doDraw(){
+    const team = $("picker").value;
+    if(!team){ toast("请先选择队伍"); return; }
+    $("drawBtn").disabled = true;
+    const { status, data } = await api("/api/draw","POST",{ team });
+    if(status === 200){
+      myTeam = team; localStorage.setItem("myTeam", team);
+      showMyResult(team, data.number);
+      toast(`${team} 抽中 ${data.number} 号`);
+      await refresh();
+    } else if(status === 409){
+      toast(data.error + (data.number?("："+data.number):""));
+      await refresh();
+    } else {
+      toast(data.error || "抽签失败");
+      $("drawBtn").disabled = false;
+    }
+  }
+
+  async function setupTeams(){
+    const key = $("orgKey").value.trim() || "admin";
+    const names = $("orgTeams").value.split(/[,\n，]/).map(s=>s.trim()).filter(Boolean);
+    if(names.length !== 5){ toast(`需要正好 5 个队名，当前 ${names.length} 个`,"error"); return; }
+    const { status, data } = await api("/api/setup","POST",{ key, teams:names });
+    if(status===200){ $("orgTeams").value = data.teams.join(", "); toast("队名已保存"); await refresh(); }
+    else toast((data.error||"保存失败") + (status===0?"":"（"+status+"）"),"error");
+  }
+  async function resetAll(){
+    const key = $("orgKey").value.trim() || "admin";
+    const { status, data } = await api("/api/reset","POST",{ key });
+    if(status===200){ localStorage.removeItem("myTeam"); myTeam=""; toast("已重置"); await refresh(); }
+    else toast((data.error||"重置失败") + (status===0?"":"（"+status+"）"),"error");
+  }
+
+  // 启动：拉取状态 + 每 3 秒自动同步
+  refresh();
+  setInterval(refresh, 3000);
+</script>
+</body>
+</html>
