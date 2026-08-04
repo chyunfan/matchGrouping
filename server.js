@@ -1,11 +1,12 @@
 // 5队篮球远程抽签服务器（零依赖，纯 Node）
-// 运行： node server.js   然后浏览器/手机打开 http://<本机IP>:3000
+// 运行： node server.js   然后浏览器/手机打开 http://<本机IP>:<PORT>
+// 部署：云平台会自动注入 PORT；ORG_KEY 可用环境变量覆盖（默认见下）
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
-const PORT = 3000;
-const ORG_KEY = "11"; // 组织者密钥（可改），用于设置队名 / 重置
+const PORT = process.env.PORT || 3000;
+const ORG_KEY = process.env.ORG_KEY || "11"; // 组织者密钥，用于设置队名 / 重置
 const STATE_FILE = path.join(__dirname, "draw_state.json");
 const DEFAULT_TEAMS = ["一队（金皓明）", "二队（骆沸）", "三队（金世源）", "四队（吕挺）", "五队（郑景）"];
 

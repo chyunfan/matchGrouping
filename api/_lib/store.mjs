@@ -1,32 +1,36 @@
-// 状态存储：优先用 Vercel KV（跨请求持久化）；未配置 KV 时降级到 /tmp 文件（仅同实例有效，便于先跑通）
+// 状态存储：优先用 Upstash Redis（Vercel 官方推荐，跨请求/跨实例持久化）；
+// 未配置 Redis 时降级到 /tmp 文件（仅同实例有效，便于先跑通本地）
 import fs from "fs";
 import { defaultState } from "./draw.mjs";
 
 const KEY = "draw_state";
 const FALLBACK = "/tmp/draw_state.json";
-let _kv = null;
+let _redis = null;
 
-function hasKV() {
-  return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+function hasRedis() {
+  return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
 }
 
-async function getKV() {
-  if (!hasKV()) return null;
-  if (!_kv) {
-    const m = await import("@vercel/kv"); // 动态 import，未配置 KV 时不报错
-    _kv = m.kv;
+async function getRedis() {
+  if (!hasRedis()) return null;
+  if (!_redis) {
+    const m = await import("@upstash/redis"); // 动态 import，未配置时不报错
+    _redis = new m.Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
   }
-  return _kv;
+  return _redis;
 }
 
 export async function getState() {
-  const kv = await getKV();
-  if (kv) {
+  const redis = await getRedis();
+  if (redis) {
     try {
-      const s = await kv.get(KEY);
+      const s = await redis.get(KEY);
       if (s) return s;
     } catch (e) {
-      console.error("[store] KV get failed:", e?.message);
+      console.error("[store] Redis get failed:", e?.message);
     }
   }
   try {
@@ -36,10 +40,10 @@ export async function getState() {
 }
 
 export async function saveState(s) {
-  const kv = await getKV();
-  if (kv) {
-    try { await kv.set(KEY, s); return; }
-    catch (e) { console.error("[store] KV set failed:", e?.message); }
+  const redis = await getRedis();
+  if (redis) {
+    try { await redis.set(KEY, s); return; }
+    catch (e) { console.error("[store] Redis set failed:", e?.message); }
   }
   try { fs.writeFileSync(FALLBACK, JSON.stringify(s)); }
   catch (e) { console.error("[store] fallback write failed:", e?.message); }
