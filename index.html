@@ -162,17 +162,20 @@
   function renderPicker(teams, drawn){
     const sel = $("picker");
     const prev = myTeam;
+    const current = sel.value; // 记住当前选择：每 3 秒刷新时不要把已选队伍冲掉
     sel.innerHTML = "";
     const remaining = teams.filter(t => drawn[t] === undefined);
     const opts = myTeam && drawn[myTeam] !== undefined ? [myTeam] : remaining;
     if(opts.length === 0){ sel.innerHTML = "<option>已全部抽签</option>"; $("drawBtn").disabled=true; return; }
-    // 默认空选项（占位提示）：必须手动选择队伍后才能抽签（前置必选项）
+    // 占位选项（值为空 = 未选择；必选后才能抽签）
     const ph = document.createElement("option");
-    ph.value = ""; ph.disabled = true; ph.selected = true;
-    ph.textContent = "请选择你的队伍";
+    ph.value = ""; ph.textContent = "请选择你的队伍";
     sel.appendChild(ph);
     opts.forEach(t=>{ const o=document.createElement("option"); o.value=t; o.textContent=t; sel.appendChild(o); });
+    // 恢复选择：已抽过/已选的本队 > 用户正在选的 > 占位
     if(prev && opts.includes(prev)) sel.value = prev;
+    else if(current && opts.includes(current)) sel.value = current;
+    else sel.value = "";
     $("drawBtn").disabled = false;
   }
 
