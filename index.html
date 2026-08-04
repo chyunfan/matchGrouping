@@ -93,7 +93,7 @@
   <div class="panel">
     <h2>② 抽签进度（实时） <span class="badge" id="cnt">0 / 5</span></h2>
     <div class="board" id="board"></div>
-    <div class="muted" style="margin-top:8px">提示：可随时刷新本页面查看最新进度；已抽签的队伍号码会保留。</div>
+    <div class="muted" style="margin-top:8px">提示：可随时刷新本页面查看最新进度；已抽签的队伍会保留状态，号码将在全部抽完后随赛程公布。</div>
   </div>
 
   <div class="panel" id="schedPanel" style="display:none">
@@ -187,7 +187,7 @@
       const d = document.createElement("div");
       d.className = "slot" + (done?" done":"");
       d.innerHTML = `<div class="nm">${t}</div>` +
-        (done ? `<div class="no">${drawn[t]}</div>` : `<div class="no wait">未抽签</div>`) +
+        (done ? `<div class="no">已抽签</div>` : `<div class="no wait">未抽签</div>`) +
         (isMe ? `<div class="my">这是我</div>` : "");
       b.appendChild(d);
     });
@@ -211,17 +211,20 @@
   }
 
   function showMyResult(team, number){
-    $("myNo").textContent = number;
-    $("myTag").textContent = team + " 的定位号";
+    // 保密抽签：不展示具体号码，只显示「已抽签」+ 待其他人完成
+    $("myNo").textContent = "已抽签";
+    $("myNo").style.fontSize = "24px";
+    $("myTag").textContent = team;
     $("drawcard").classList.add("flipped");
     $("drawBtn").disabled = true;
-    $("hint").textContent = `🎉 你已抽中定位号 ${number}，等待其他队长抽签…`;
+    $("hint").textContent = "待其他人抽签完成";
   }
 
   // 重置本地「我的抽签结果」UI：翻回牌面、清号码、清提示
   function resetMyResultUI(){
     $("drawcard").classList.remove("flipped");
     $("myNo").textContent = "—";
+    $("myNo").style.fontSize = "";
     $("myTag").textContent = "";
     $("hint").textContent = "";
     $("drawBtn").disabled = false;
@@ -250,6 +253,8 @@
     }
     if(data.allDrawn && data.schedule){
       renderSchedule(data.schedule);
+      // 全部抽签完成：「待其他人抽签完成」提示消失
+      $("hint").textContent = "";
     } else {
       $("schedPanel").style.display = "none";
     }
@@ -263,10 +268,10 @@
     if(status === 200){
       myTeam = team; localStorage.setItem("myTeam", team);
       showMyResult(team, data.number);
-      toast(`${team} 抽中 ${data.number} 号`);
+      toast(`${team} 已抽签，待其他人完成`);
       await refresh();
     } else if(status === 409){
-      toast(data.error + (data.number?("："+data.number):""));
+      toast(data.error); // 不展示号码，保密
       await refresh();
     } else {
       toast(data.error || "抽签失败");
