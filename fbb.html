@@ -86,7 +86,7 @@
     .drawcard .front{font-size:52px}
     table{font-size:12px}
     th,td{padding:8px 4px}
-    td.gn{font-size:15px}
+    td.gn{font-size:13px;white-space:normal;line-height:1.4}
     .toast{max-width:92%;text-align:center;font-size:13px}
     .org input,.org textarea{font-size:16px}
   }
@@ -122,22 +122,10 @@
   <div class="tablewrap">
   <table>
     <thead><tr><th>日期</th><th>时间</th><th>场序</th><th>对阵</th></tr></thead>
-    <tbody>
-      <tr><td rowspan="2" style="font-weight:700">8月13日</td><td>第一场</td><td>1</td><td class="gn">A3 - A4</td></tr>
-      <tr>                                                    <td>第二场</td><td>2</td><td class="gn">A1 - A2</td></tr>
-      <tr><td rowspan="2" style="font-weight:700">8月17日</td><td>第一场</td><td>3</td><td class="gn">A2 - A5</td></tr>
-      <tr>                                                    <td>第二场</td><td>4</td><td class="gn">A3 - A1</td></tr>
-      <tr><td rowspan="2" style="font-weight:700">8月20日</td><td>第一场</td><td>5</td><td class="gn">A1 - A5</td></tr>
-      <tr>                                                    <td>第二场</td><td>6</td><td class="gn">A4 - A2</td></tr>
-      <tr><td rowspan="2" style="font-weight:700">8月24日</td><td>第一场</td><td>7</td><td class="gn">A4 - A1</td></tr>
-      <tr>                                                    <td>第二场</td><td>8</td><td class="gn">A5 - A3</td></tr>
-      <tr><td rowspan="2" style="font-weight:700">8月27日</td><td>第一场</td><td>9</td><td class="gn">A2 - A3</td></tr>
-      <tr>                                                    <td>第二场</td><td>10</td><td class="gn">A5 - A4</td></tr>
-      <tr><td rowspan="2" style="font-weight:700">8月30日</td><td>第一场</td><td>11</td><td class="gn">A三 - A四</td></tr>
-      <tr>                                                    <td>第二场</td><td>12</td><td class="gn">A一 - A二</td></tr>
-    </tbody>
+    <tbody id="schedBody"></tbody>
   </table>
   </div>
+  <div class="muted" style="margin-top:8px">5 队全部抽签完成后，对阵中的 A1–A5 将自动替换为对应队名。</div>
 </div>
 
 <details class="panel org">
@@ -297,6 +285,7 @@
       applyState(data);
       renderTeamSelect();
       renderBoard();
+      renderSchedule();
       renderMyArea();
       toast(`${team} 抽到了 ${data.label}`);
     } else if(status === 409){
@@ -316,6 +305,7 @@
       applyState(data);
       renderTeamSelect();
       renderBoard();
+      renderSchedule();
       renderMyArea();
     } else if(status === 409){
       toast(data.error, "error");
@@ -330,6 +320,43 @@
     autoTeams = data.autoTeams || [];
   }
 
+  // 赛程数据（与公示表一致；第 11/12 场沿用中文数字 A一~A四）
+  const SCHEDULE = [
+    { date:"8月13日", s:"第一场", no:1,  a:"A3", b:"A4" },
+    { date:"8月13日", s:"第二场", no:2,  a:"A1", b:"A2" },
+    { date:"8月17日", s:"第一场", no:3,  a:"A2", b:"A5" },
+    { date:"8月17日", s:"第二场", no:4,  a:"A3", b:"A1" },
+    { date:"8月20日", s:"第一场", no:5,  a:"A1", b:"A5" },
+    { date:"8月20日", s:"第二场", no:6,  a:"A4", b:"A2" },
+    { date:"8月24日", s:"第一场", no:7,  a:"A4", b:"A1" },
+    { date:"8月24日", s:"第二场", no:8,  a:"A5", b:"A3" },
+    { date:"8月27日", s:"第一场", no:9,  a:"A2", b:"A3" },
+    { date:"8月27日", s:"第二场", no:10, a:"A5", b:"A4" },
+    { date:"8月30日", s:"第一场", no:11, a:"A三", b:"A四" },
+    { date:"8月30日", s:"第二场", no:12, a:"A一", b:"A二" },
+  ];
+  // 中文数字编号 → 阿拉伯编号，便于统一映射队名
+  function normLabel(l){ return { "A一":"A1","A二":"A2","A三":"A3","A四":"A4" }[l] || l; }
+  // 编号 → 队名；未全部抽完时原样显示编号
+  function labelToTeam(l){
+    const key = normLabel(l);
+    if(allDrawn && drawn && Object.keys(drawn).length === 5){
+      for(const t of Object.keys(drawn)){
+        if(drawn[t] === key) return t;
+      }
+    }
+    return l;
+  }
+  function renderSchedule(){
+    const tbody = $("schedBody");
+    let html = "";
+    SCHEDULE.forEach((g, i) => {
+      const dateTd = i % 2 === 0 ? `<td rowspan="2" style="font-weight:700">${g.date}</td>` : "";
+      html += `<tr>${dateTd}<td>${g.s}</td><td>${g.no}</td><td class="gn">${labelToTeam(g.a)} - ${labelToTeam(g.b)}</td></tr>`;
+    });
+    tbody.innerHTML = html;
+  }
+
   async function refresh(){
     const { status, data } = await call("GET");
     if(status !== 200 || !Array.isArray(data.teams)){
@@ -340,6 +367,7 @@
     if(firstLoad){ $("teamNames").value = (data.teams||[]).join("\n"); firstLoad = false; }
     renderTeamSelect();
     renderBoard();
+    renderSchedule();
     renderMyArea();
   }
 
@@ -352,7 +380,7 @@
     if(status === 200){
       applyState(data);
       $("teamNames").value = (data.teams||[]).join("\n");
-      renderTeamSelect(); renderBoard(); renderMyArea();
+      renderTeamSelect(); renderBoard(); renderSchedule(); renderMyArea();
       toast("队名已保存");
     } else {
       toast((data.error||"保存失败") + (status===0?"":"（"+status+"）"), "error");
@@ -368,7 +396,7 @@
       localStorage.removeItem("fbb_myTeam"); myTeam = "";
       applyState({ teams: data.teams, drawn: {}, allDrawn: false, autoTeams: [] });
       $("teamNames").value = (data.teams||[]).join("\n");
-      renderTeamSelect(); renderBoard(); renderMyArea();
+      renderTeamSelect(); renderBoard(); renderSchedule(); renderMyArea();
       toast("已重置全部抽签");
     } else {
       toast((data.error||"重置失败") + (status===0?"":"（"+status+"）"), "error");
