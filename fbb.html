@@ -125,7 +125,7 @@
     <tbody id="schedBody"></tbody>
   </table>
   </div>
-  <div class="muted" style="margin-top:8px">5 队全部抽签完成后，对阵中的 A1–A5 将自动替换为对应队名。</div>
+  <div class="muted" style="margin-top:8px">每支队伍抽签完成后，赛程中对应的编号将自动替换为该队队名。</div>
 </div>
 
 <details class="panel org">
@@ -337,10 +337,10 @@
   ];
   // 中文数字编号 → 阿拉伯编号，便于统一映射队名
   function normLabel(l){ return { "A一":"A1","A二":"A2","A三":"A3","A四":"A4" }[l] || l; }
-  // 编号 → 队名；未全部抽完时原样显示编号
+  // 编号 → 队名：该编号已被抽出（drawn 中有对应）就显示队名，否则回退显示编号
   function labelToTeam(l){
     const key = normLabel(l);
-    if(allDrawn && drawn && Object.keys(drawn).length === 5){
+    if(drawn && Object.values(drawn).includes(key)){
       for(const t of Object.keys(drawn)){
         if(drawn[t] === key) return t;
       }
