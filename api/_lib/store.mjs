@@ -110,8 +110,8 @@ export async function saveState(s, id = 1) {
   catch (e) { console.error("[store] fallback write failed:", e?.message); }
 }
 
-export async function loadState(id = 1) {
+export async function loadState(id = 1, makeDefault = defaultState) {
   let s = await getState(id);
-  if (!s) { s = defaultState(); await saveState(s, id); }
+  if (!s) { s = makeDefault(); await saveState(s, id); }
   return s;
 }

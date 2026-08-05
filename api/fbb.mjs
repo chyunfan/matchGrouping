@@ -20,14 +20,36 @@ function normalize(s) {
   return s;
 }
 
+// 富阳页专属默认状态（与主页面默认队名区分开）
+function fbbDefault() {
+  return { teams: DEFAULT_TEAMS.slice(), drawn: {}, allDrawn: false, schedule: { autoTeams: [] } };
+}
+
 function remainingLabels(s) {
   const used = new Set(Object.values(s.drawn));
   return LABELS.filter(l => !used.has(l));
 }
 
+// 预生成整组分配计划：随机排列 A1-A5，排除“全部队伍次序==编号”全对上（一队=A1、二队=A2…）的情况
+function generatePlan(teams) {
+  const labels = LABELS.slice();
+  for (let attempt = 0; attempt < 100; attempt++) {
+    // Fisher–Yates 洗牌
+    for (let i = labels.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [labels[i], labels[j]] = [labels[j], labels[i]];
+    }
+    const allMatch = teams.every((t, idx) => labels[idx] === "A" + (idx + 1));
+    if (!allMatch) break;
+  }
+  const plan = {};
+  teams.forEach((t, idx) => { plan[t] = labels[idx]; });
+  return plan;
+}
+
 export default async function handler(req, res) {
   if (req.method === "GET") {
-    const s = normalize(await loadState(STATE_ID));
+    const s = normalize(await loadState(STATE_ID, fbbDefault));
     return res.status(200).json({
       teams: s.teams,
       drawn: s.drawn,
@@ -43,7 +65,7 @@ export default async function handler(req, res) {
   try { body = JSON.parse(raw || "{}"); } catch {}
 
   const action = body.action || "";
-  const s = normalize(await loadState(STATE_ID));
+  const s = normalize(await loadState(STATE_ID, fbbDefault));
 
   // ---- 抽签 ----
   if (action === "draw") {
@@ -55,13 +77,16 @@ export default async function handler(req, res) {
 
     let label;
     const before = Object.keys(s.drawn).length;
+    // 首次抽签：预生成整组随机分配计划（排除“全部队伍次序==编号”的全对上情况，保证公平且避免顺序感）
+    if (before === 0 && (!s.schedule.plan || Object.keys(s.schedule.plan).length !== 5)) {
+      s.schedule.plan = generatePlan(s.teams);
+    }
     if (before >= 4) {
       // 最后 1 队：自动分配剩余编号（不随机，属于“已分配”）
       label = remainingLabels(s)[0] || null;
     } else {
-      // 前 4 队：随机抽取剩余编号
-      const avail = remainingLabels(s);
-      label = avail.length ? avail[Math.floor(Math.random() * avail.length)] : null;
+      // 前 4 队：按“预生成计划”揭示编号
+      label = (s.schedule.plan && s.schedule.plan[team]) || null;
     }
     if (!label) return res.status(409).json({ error: "编号已抽完" });
 
@@ -72,7 +97,7 @@ export default async function handler(req, res) {
     // 第 4 队抽完 → 立即给最后一队自动落盘（看板 5/5，符合“抽签结束”）
     if (Object.keys(s.drawn).length === 4) {
       const lastTeam = s.teams.find(t => s.drawn[t] === undefined);
-      const lastLabel = remainingLabels(s)[0];
+      const lastLabel = (s.schedule.plan && s.schedule.plan[lastTeam]) || remainingLabels(s)[0];
       if (lastTeam && lastLabel) {
         s.drawn[lastTeam] = lastLabel;
         s.schedule.autoTeams.push(lastTeam);
