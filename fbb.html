@@ -13,7 +13,8 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
     font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,Roboto,sans-serif;
-    line-height:1.55;padding:18px;max-width:880px;margin:0 auto}
+    line-height:1.55;padding:18px;max-width:880px;margin:0 auto;
+    -webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
   h1{font-size:21px;margin:0 0 4px}
   .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
   .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;
@@ -21,7 +22,7 @@
   h2{font-size:16px;margin:0 0 10px;border-left:4px solid var(--brand);padding-left:10px}
   label{font-size:13px;color:var(--muted)}
   select,input[type=text],textarea{padding:9px 11px;border:1px solid var(--line);border-radius:9px;
-    width:100%;font-size:14px;background:#fff;color:var(--ink);margin-top:4px}
+    width:100%;font-size:16px;background:#fff;color:var(--ink);margin-top:4px}
   select:focus,input:focus,textarea:focus{outline:none;border-color:var(--brand2)}
   textarea{min-height:60px;font-family:inherit;resize:vertical}
   .btn{display:inline-block;border:none;border-radius:9px;padding:10px 16px;font-size:14px;
@@ -31,6 +32,7 @@
   .muted{color:var(--muted);font-size:13px}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
   .row>div{flex:1;min-width:180px}
+  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px}
   /* 翻牌 */
   .drawcard{width:140px;height:180px;margin:14px auto 6px;perspective:800px;cursor:default}
   .drawcard .face{position:absolute;inset:0;border-radius:14px;display:flex;flex-direction:column;
@@ -60,6 +62,29 @@
     padding:10px 18px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:99}
   .toast.show{opacity:1}
   .toast.error{background:#c92a2a}
+  /* 手机适配 */
+  @media (max-width:520px){
+    body{padding:12px}
+    h1{font-size:19px}
+    .sub{font-size:12px;margin-bottom:10px}
+    .panel{padding:12px 14px;border-radius:12px}
+    h2{font-size:15px}
+    .btn{width:100%;padding:13px 10px;min-height:46px;font-size:15px;border-radius:10px}
+    .btn.ghost{width:100%}
+    select,input[type=text],textarea{min-height:46px;font-size:16px}
+    .row>div{min-width:100%}
+    .board{grid-template-columns:repeat(auto-fit,minmax(94px,1fr));gap:8px}
+    .slot{padding:10px 6px;border-radius:9px}
+    .slot .nm{font-size:13px}
+    .slot .no{font-size:18px}
+    .drawcard{width:118px;height:150px}
+    .drawcard .front{font-size:52px}
+    table{font-size:12px}
+    th,td{padding:8px 4px}
+    td.gn{font-size:15px}
+    .toast{max-width:92%;text-align:center;font-size:13px}
+    .org input,.org textarea{font-size:16px}
+  }
   @media print{.btn,.toast,textarea,.org{display:none}}
 </style>
 </head>
@@ -89,6 +114,7 @@
 
 <div class="panel">
   <h2>③ 2026 富阳农商银行篮球比赛 · 赛程表（共 12 场）</h2>
+  <div class="tablewrap">
   <table>
     <thead><tr><th>日期</th><th>时间</th><th>场序</th><th>对阵</th></tr></thead>
     <tbody>
@@ -106,6 +132,7 @@
       <tr>                                                    <td>第二场</td><td>12</td><td class="gn">A一 - A二</td></tr>
     </tbody>
   </table>
+  </div>
 </div>
 
 <div class="panel org">
@@ -169,13 +196,34 @@
   function renderTeamSelect(){
     const sel = $("myTeam");
     const prev = sel.value;
+    const myDrawn = myTeam && drawn[myTeam] !== undefined;
+    const undrawn = teams.filter(t => drawn[t] === undefined);
+
+    if(myDrawn){
+      // 我已抽过：下拉只显示我的队并锁定，不能再选其他队伍
+      sel.innerHTML = "";
+      const o = document.createElement("option");
+      o.value = myTeam; o.textContent = myTeam + "（已抽签）";
+      sel.appendChild(o);
+      sel.value = myTeam;
+      sel.disabled = true;
+      return;
+    }
+
+    sel.disabled = false;
     sel.innerHTML = '<option value="">请选择你的队伍</option>';
-    teams.forEach(t => {
+    if(undrawn.length === 0){
+      sel.innerHTML = '<option value="">已全部抽签</option>';
+      sel.disabled = true;
+      return;
+    }
+    // 只列出未抽签的队伍：其他人抽过的队不再出现在下拉里
+    undrawn.forEach(t => {
       const o = document.createElement("option");
       o.value = t; o.textContent = t;
       sel.appendChild(o);
     });
-    if(prev && teams.includes(prev)) sel.value = prev;
+    if(prev && undrawn.includes(prev)) sel.value = prev;
   }
 
   function renderBoard(){
@@ -240,6 +288,7 @@
     if(status === 200){
       myTeam = team; localStorage.setItem("fbb_myTeam", team);
       applyState(data);
+      renderTeamSelect();
       renderBoard();
       renderMyArea();
       toast(`${team} 抽到了 ${data.label}`);
@@ -258,6 +307,7 @@
     if(status === 200){
       myTeam = team; localStorage.setItem("fbb_myTeam", team);
       applyState(data);
+      renderTeamSelect();
       renderBoard();
       renderMyArea();
     } else if(status === 409){
