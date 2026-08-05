@@ -38,6 +38,41 @@
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
   .row>div{flex:1;min-width:180px}
   .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px}
+  .deskonly{display:block}
+  .mobilonly{display:none}
+  /* 卡片式赛程（手机端） */
+  .gamecard{
+    background:linear-gradient(135deg,#ffffff,#fafbfc);
+    border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;margin-bottom:10px;
+    box-shadow:0 2px 8px rgba(31,41,51,.06);
+  }
+  .gamecard .meta{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:10px;padding-bottom:8px;
+    border-bottom:1px dashed var(--line);
+    font-size:12px;color:var(--muted)
+  }
+  .gamecard .meta .date{font-weight:700;color:var(--brand);font-size:13px}
+  .gamecard .meta .badge{
+    background:var(--brand);color:#fff;border-radius:8px;
+    padding:2px 8px;font-weight:700;font-size:12px
+  }
+  .gamecard .teams{display:flex;flex-direction:column;gap:4px}
+  .gamecard .team{
+    display:flex;align-items:center;justify-content:center;
+    padding:10px;background:#fafbfc;border-radius:9px;
+    border:1px solid var(--line);
+    font-weight:700;color:var(--ink);font-size:15px;text-align:center
+  }
+  .gamecard .team.pending{
+    background:#fff;color:var(--muted);font-weight:600;
+    border:1px dashed var(--line)
+  }
+  .gamecard .vs{
+    align-self:center;color:var(--brand2);font-weight:700;
+    font-size:11px;letter-spacing:2px
+  }
   /* 翻牌 */
   .drawcard{width:140px;height:180px;margin:14px auto 6px;perspective:800px;cursor:default}
   .drawcard .face{position:absolute;inset:0;border-radius:14px;display:flex;flex-direction:column;
@@ -74,6 +109,10 @@
     .sub{font-size:12px;margin-bottom:10px}
     .panel{padding:12px 14px;border-radius:12px}
     h2{font-size:15px}
+    .deskonly{display:none !important}
+    .mobilonly{display:block}
+    .gamecard{padding:11px 12px;border-radius:11px}
+    .gamecard .team{font-size:14px;padding:9px}
     .btn{width:100%;padding:13px 10px;min-height:46px;font-size:15px;border-radius:10px}
     .btn.ghost{width:100%}
     select,input[type=text],textarea{min-height:46px;font-size:16px}
@@ -118,14 +157,17 @@
 </div>
 
 <div class="panel">
-  <h2>③ 2026 富阳农商银行篮球比赛 · 赛程表（共 12 场）</h2>
-  <div class="tablewrap">
-  <table>
-    <thead><tr><th>日期</th><th>时间</th><th>场序</th><th>对阵</th></tr></thead>
-    <tbody id="schedBody"></tbody>
-  </table>
+  <h2>③ 赛程表（共 12 场）</h2>
+  <!-- 桌面端：表格 -->
+  <div class="tablewrap deskonly">
+    <table>
+      <thead><tr><th>日期</th><th>时间</th><th>场序</th><th>对阵</th></tr></thead>
+      <tbody id="schedBody"></tbody>
+    </table>
   </div>
-  <div class="muted" style="margin-top:8px">每支队伍抽签完成后，赛程中对应的编号将自动替换为该队队名。</div>
+  <!-- 手机端：卡片列表 -->
+  <div id="schedCards" class="mobilonly"></div>
+  <div class="muted" style="margin-top:8px">每支队伍抽签完成后，前 10 场对阵中对应的编号将自动替换为该队队名；第 11、12 场为循环赛前四名赛，编号 A一~A四 保持不变。</div>
 </div>
 
 <details class="panel org">
@@ -320,7 +362,7 @@
     autoTeams = data.autoTeams || [];
   }
 
-  // 赛程数据（与公示表一致；第 11/12 场沿用中文数字 A一~A四）
+  // 赛程数据（与公示表一致；第 11/12 场为循环赛前四名赛，keep=true 保留 A一~A四 编号不替换）
   const SCHEDULE = [
     { date:"8月13日", s:"第一场", no:1,  a:"A3", b:"A4" },
     { date:"8月13日", s:"第二场", no:2,  a:"A1", b:"A2" },
@@ -332,8 +374,8 @@
     { date:"8月24日", s:"第二场", no:8,  a:"A5", b:"A3" },
     { date:"8月27日", s:"第一场", no:9,  a:"A2", b:"A3" },
     { date:"8月27日", s:"第二场", no:10, a:"A5", b:"A4" },
-    { date:"8月30日", s:"第一场", no:11, a:"A三", b:"A四" },
-    { date:"8月30日", s:"第二场", no:12, a:"A一", b:"A二" },
+    { date:"8月30日", s:"第一场", no:11, a:"A三", b:"A四", keep:true },
+    { date:"8月30日", s:"第二场", no:12, a:"A一", b:"A二", keep:true },
   ];
   // 中文数字编号 → 阿拉伯编号，便于统一映射队名
   function normLabel(l){ return { "A一":"A1","A二":"A2","A三":"A3","A四":"A4" }[l] || l; }
@@ -348,13 +390,31 @@
     return l;
   }
   function renderSchedule(){
+    // 桌面端：表格
     const tbody = $("schedBody");
-    let html = "";
+    let thtml = "";
+    // 手机端：卡片
+    const cards = $("schedCards");
+    let chtml = "";
     SCHEDULE.forEach((g, i) => {
+      const a = g.keep ? g.a : labelToTeam(g.a);
+      const b = g.keep ? g.b : labelToTeam(g.b);
       const dateTd = i % 2 === 0 ? `<td rowspan="2" style="font-weight:700">${g.date}</td>` : "";
-      html += `<tr>${dateTd}<td>${g.s}</td><td>${g.no}</td><td class="gn">${labelToTeam(g.a)} - ${labelToTeam(g.b)}</td></tr>`;
+      thtml += `<tr>${dateTd}<td>${g.s}</td><td>${g.no}</td><td class="gn">${a} - ${b}</td></tr>`;
+      // 卡片：前四名赛不替换、不显示"待抽"；常规赛未抽到的队（仍是编号）显示 pending 样式
+      const aPending = !g.keep && a === g.a, bPending = !g.keep && b === g.b;
+      const badge = g.keep ? `${g.s} · 第 ${g.no} 场（前四名）` : `${g.s} · 第 ${g.no} 场`;
+      chtml += `<div class="gamecard">
+        <div class="meta"><span class="date">${g.date}</span><span class="badge">${badge}</span></div>
+        <div class="teams">
+          <div class="team${aPending ? ' pending' : ''}">${a}</div>
+          <div class="vs">VS</div>
+          <div class="team${bPending ? ' pending' : ''}">${b}</div>
+        </div>
+      </div>`;
     });
-    tbody.innerHTML = html;
+    tbody.innerHTML = thtml;
+    cards.innerHTML = chtml;
   }
 
   async function refresh(){
