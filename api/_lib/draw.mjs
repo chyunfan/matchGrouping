@@ -42,13 +42,15 @@ export function buildSchedule(posToTeam) {
   return days;
 }
 
-// 分配一个尚未被使用的定位号
+// 分配一个尚未被使用的定位号（随机抽取，避免按 1-2-3-4-5 顺序发放）
 export function assignNumber(state) {
   const used = new Set(Object.values(state.drawn));
+  const avail = [];
   for (let n = 1; n <= state.teams.length; n++) {
-    if (!used.has(n)) return n;
+    if (!used.has(n)) avail.push(n);
   }
-  return null;
+  if (avail.length === 0) return null;
+  return avail[Math.floor(Math.random() * avail.length)];
 }
 
 // 全部抽完则生成赛程

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 富阳农商银行篮球 · 远程抽签</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#fff; --ink:#1f2933; --muted:#6b7280;
+    --line:#e3e8f0; --brand:#e8502e; --brand2:#2b6cb0; --ok:#2f9e44;
+    --shadow:0 6px 18px rgba(31,41,51,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,Roboto,sans-serif;
+    line-height:1.55;padding:18px;max-width:880px;margin:0 auto}
+  h1{font-size:21px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:16px 18px;box-shadow:var(--shadow);margin-bottom:16px}
+  h2{font-size:16px;margin:0 0 10px;border-left:4px solid var(--brand);padding-left:10px}
+  label{font-size:13px;color:var(--muted)}
+  select,input[type=text],textarea{padding:9px 11px;border:1px solid var(--line);border-radius:9px;
+    width:100%;font-size:14px;background:#fff;color:var(--ink);margin-top:4px}
+  select:focus,input:focus,textarea:focus{outline:none;border-color:var(--brand2)}
+  textarea{min-height:60px;font-family:inherit;resize:vertical}
+  .btn{display:inline-block;border:none;border-radius:9px;padding:10px 16px;font-size:14px;
+    font-weight:700;cursor:pointer;color:#fff;background:var(--brand);margin-top:12px}
+  .btn.ghost{background:#fff;color:var(--brand2);border:1px solid var(--brand2)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .muted{color:var(--muted);font-size:13px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .row>div{flex:1;min-width:180px}
+  /* 翻牌 */
+  .drawcard{width:140px;height:180px;margin:14px auto 6px;perspective:800px;cursor:default}
+  .drawcard .face{position:absolute;inset:0;border-radius:14px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;backface-visibility:hidden;transition:transform .6s;font-weight:800}
+  .drawcard .back{background:linear-gradient(135deg,#e8502e,#ff8a5c);color:#fff;font-size:44px;
+    box-shadow:inset 0 0 0 4px rgba(255,255,255,.25)}
+  .drawcard .front{background:#fff;border:2px solid var(--ok);color:var(--ok);font-size:60px;
+    transform:rotateY(180deg);box-shadow:0 4px 14px rgba(47,158,68,.2)}
+  .drawcard.flipped .back{transform:rotateY(180deg)}
+  .drawcard.flipped .front{transform:rotateY(0)}
+  .drawcard .tag{font-size:13px;color:var(--muted);font-weight:600;margin-top:6px}
+  /* 进度 */
+  .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:6px}
+  .slot{border:1px solid var(--line);border-radius:11px;padding:12px;text-align:center;background:#fafbfc}
+  .slot.done{background:#eafaf0;border-color:#b7e4c7}
+  .slot .nm{font-weight:700;font-size:14px}
+  .slot .no{font-size:22px;font-weight:800;color:var(--ok);margin-top:4px;letter-spacing:1px}
+  .slot .no.wait{color:var(--muted);font-size:13px;font-weight:600}
+  .slot .my{font-size:11px;color:var(--brand2);font-weight:700;margin-top:2px}
+  /* 赛程 */
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+  th,td{border:1px solid var(--line);padding:9px 8px;text-align:center}
+  th{background:#f1f5f9;color:#334155;font-weight:700}
+  td.gn{font-size:17px;font-weight:800;color:var(--brand);letter-spacing:1px}
+  tbody tr:nth-child(even) td{background:#fafbfc}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1f2933;color:#fff;
+    padding:10px 18px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:99}
+  .toast.show{opacity:1}
+  .toast.error{background:#c92a2a}
+  @media print{.btn,.toast,textarea,.org{display:none}}
+</style>
+</head>
+<body>
+<h1>🏀 2026 富阳农商银行篮球 · 远程抽签</h1>
+<div class="sub">5 位队长各自在手机上打开本页面抽签（A1–A5），进度实时同步、刷新可见；第 4 队抽完后，最后一队将自动分配到剩余编号。下方为已安排赛程表。</div>
+
+<div class="panel">
+  <h2>① 选择你的队伍并抽签</h2>
+  <div class="row">
+    <div>
+      <label>选择你的队伍：</label>
+      <select id="myTeam">
+        <option value="">请选择你的队伍</option>
+      </select>
+      <div class="muted" style="margin-top:6px;font-size:12px">必选项：选完后，下方会根据当前进度提示抽签或显示已分配结果。</div>
+    </div>
+  </div>
+  <div id="drawArea" style="text-align:center;min-height:80px"></div>
+  <div class="muted" id="hint" style="text-align:center;margin-top:6px"></div>
+</div>
+
+<div class="panel">
+  <h2>② 抽签进度（实时） <span id="cnt" style="display:inline-block;background:var(--ok);color:#fff;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:700">0 / 5</span></h2>
+  <div class="board" id="board"></div>
+</div>
+
+<div class="panel">
+  <h2>③ 2026 富阳农商银行篮球比赛 · 赛程表（共 12 场）</h2>
+  <table>
+    <thead><tr><th>日期</th><th>时间</th><th>场序</th><th>对阵</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="2" style="font-weight:700">8月13日</td><td>第一场</td><td>1</td><td class="gn">A3 - A4</td></tr>
+      <tr>                                                    <td>第二场</td><td>2</td><td class="gn">A1 - A2</td></tr>
+      <tr><td rowspan="2" style="font-weight:700">8月17日</td><td>第一场</td><td>3</td><td class="gn">A2 - A5</td></tr>
+      <tr>                                                    <td>第二场</td><td>4</td><td class="gn">A3 - A1</td></tr>
+      <tr><td rowspan="2" style="font-weight:700">8月20日</td><td>第一场</td><td>5</td><td class="gn">A1 - A5</td></tr>
+      <tr>                                                    <td>第二场</td><td>6</td><td class="gn">A4 - A2</td></tr>
+      <tr><td rowspan="2" style="font-weight:700">8月24日</td><td>第一场</td><td>7</td><td class="gn">A4 - A1</td></tr>
+      <tr>                                                    <td>第二场</td><td>8</td><td class="gn">A5 - A3</td></tr>
+      <tr><td rowspan="2" style="font-weight:700">8月27日</td><td>第一场</td><td>9</td><td class="gn">A2 - A3</td></tr>
+      <tr>                                                    <td>第二场</td><td>10</td><td class="gn">A5 - A4</td></tr>
+      <tr><td rowspan="2" style="font-weight:700">8月30日</td><td>第一场</td><td>11</td><td class="gn">A三 - A四</td></tr>
+      <tr>                                                    <td>第二场</td><td>12</td><td class="gn">A一 - A二</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="panel org">
+  <h2>⚙️ 组织者设置（需密钥）</h2>
+  <div class="row" style="margin-bottom:10px">
+    <div style="min-width:140px;flex:0 0 160px">
+      <label>组织者密钥：</label>
+      <input type="text" id="orgKey" placeholder="请输入密钥">
+      <div class="muted" style="margin-top:4px;font-size:12px">保存队名 / 重置全部抽签均须填写</div>
+    </div>
+  </div>
+  <label>队名（一行一个，或用逗号分隔）：</label>
+  <textarea id="teamNames" placeholder="一队&#10;二队&#10;三队&#10;四队&#10;五队"></textarea>
+  <div>
+    <button class="btn" onclick="setupTeams()">保存队名</button>
+    <button class="btn ghost" onclick="resetAll()">重置全部抽签</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  function $(id){ return document.getElementById(id); }
+
+  // 根据当前页面路径自动推导 API 前缀（页面在 /matchgrouping/ 下则走 /matchgrouping/api/...）
+  function apiBase(){
+    return location.pathname
+      .replace(/\/[^/]*\.[^/]*$/, "")
+      .replace(/\/$/, "");
+  }
+  const API = apiBase() + "/api/fbb";
+
+  async function call(method, body){
+    try {
+      const opt = { method, headers:{"Content-Type":"application/json"} };
+      if(body) opt.body = JSON.stringify(body);
+      const r = await fetch(API, opt);
+      let data = {};
+      try { data = await r.json(); } catch {}
+      return { status: r.status, data };
+    } catch (e) {
+      return { status: 0, data: { error: "无法连接服务器，请检查网络" } };
+    }
+  }
+
+  function toast(msg, type){
+    const t = $("toast");
+    t.textContent = msg;
+    t.className = "toast show" + (type === "error" ? " error" : "");
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(()=> t.className = "toast", 3000);
+  }
+
+  let myTeam = localStorage.getItem("fbb_myTeam") || "";
+  let teams = [];
+  let drawn = {};
+  let allDrawn = false;
+  let autoTeams = [];
+  let firstLoad = true;
+
+  function renderTeamSelect(){
+    const sel = $("myTeam");
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">请选择你的队伍</option>';
+    teams.forEach(t => {
+      const o = document.createElement("option");
+      o.value = t; o.textContent = t;
+      sel.appendChild(o);
+    });
+    if(prev && teams.includes(prev)) sel.value = prev;
+  }
+
+  function renderBoard(){
+    const b = $("board"); b.innerHTML = "";
+    teams.forEach(t => {
+      const label = drawn[t];
+      const done = label !== undefined;
+      const isMe = t === myTeam;
+      const d = document.createElement("div");
+      d.className = "slot" + (done ? " done" : "");
+      d.innerHTML = `<div class="nm">${t}</div>` +
+        (done ? `<div class="no">${label}</div>` : `<div class="no wait">未抽签</div>`) +
+        (isMe ? `<div class="my">这是我</div>` : "");
+      b.appendChild(d);
+    });
+    $("cnt").textContent = Object.keys(drawn).length + " / 5";
+  }
+
+  function showDrawCard(label, tagText, hintText){
+    $("drawArea").innerHTML =
+      `<div class="drawcard" id="drawcard"><div class="face back">?</div>` +
+      `<div class="face front"><span id="myLabel">${label}</span><div class="tag" id="myTag">${tagText}</div></div></div>`;
+    requestAnimationFrame(()=> {
+      const c = document.getElementById("drawcard");
+      if(c) c.classList.add("flipped");
+    });
+    $("hint").textContent = hintText || "";
+  }
+
+  function showDrawButton(){
+    $("drawArea").innerHTML = `<button class="btn" id="drawBtn" onclick="doDraw()">开始抽签</button>`;
+    $("hint").textContent = "";
+  }
+
+  function renderMyArea(){
+    const team = $("myTeam").value;
+    if(!team){ $("drawArea").innerHTML = ""; $("hint").textContent = ""; return; }
+    const n = Object.keys(drawn).length;
+
+    if(drawn[team] !== undefined){
+      // 已抽签（自动分配的最后 1 队显示专属提示）
+      if(autoTeams.includes(team)){
+        showDrawCard(drawn[team], team + " · 自动分配", "已有 4 队抽签完成，编号已分配");
+      } else {
+        showDrawCard(drawn[team], team, "✅ 你已抽签");
+      }
+      return;
+    }
+    if(n >= 4){
+      // 我是最后 1 队：自动完成分配
+      autoDraw(team);
+      return;
+    }
+    showDrawButton();
+  }
+
+  async function doDraw(){
+    const team = $("myTeam").value;
+    if(!team){ toast("请先选择你的队伍","error"); return; }
+    const btn = $("drawBtn"); if(btn) btn.disabled = true;
+    const { status, data } = await call("POST", { action: "draw", team });
+    if(status === 200){
+      myTeam = team; localStorage.setItem("fbb_myTeam", team);
+      applyState(data);
+      renderBoard();
+      renderMyArea();
+      toast(`${team} 抽到了 ${data.label}`);
+    } else if(status === 409){
+      toast(data.error, "error");
+      await refresh();
+    } else {
+      toast(data.error || "抽签失败", "error");
+      if(btn) btn.disabled = false;
+    }
+  }
+
+  // 最后 1 队：服务端分配剩余编号，自动完成
+  async function autoDraw(team){
+    const { status, data } = await call("POST", { action: "draw", team });
+    if(status === 200){
+      myTeam = team; localStorage.setItem("fbb_myTeam", team);
+      applyState(data);
+      renderBoard();
+      renderMyArea();
+    } else if(status === 409){
+      toast(data.error, "error");
+      await refresh();
+    }
+  }
+
+  function applyState(data){
+    teams = data.teams || [];
+    drawn = data.drawn || {};
+    allDrawn = !!data.allDrawn;
+    autoTeams = data.autoTeams || [];
+  }
+
+  async function refresh(){
+    const { status, data } = await call("GET");
+    if(status !== 200 || !Array.isArray(data.teams)){
+      if(status === 404) toast("后端接口未找到：请确认已部署 /api/fbb", "error");
+      return;
+    }
+    applyState(data);
+    if(firstLoad){ $("teamNames").value = (data.teams||[]).join("\n"); firstLoad = false; }
+    renderTeamSelect();
+    renderBoard();
+    renderMyArea();
+  }
+
+  async function setupTeams(){
+    const key = $("orgKey").value.trim();
+    if(!key){ toast("请先输入组织者密钥","error"); return; }
+    const names = $("teamNames").value.split(/[,\n，]/).map(s=>s.trim()).filter(Boolean);
+    if(names.length !== 5){ toast(`需要正好 5 个队名，当前 ${names.length} 个`,"error"); return; }
+    const { status, data } = await call("POST", { action: "setup", key, teams: names });
+    if(status === 200){
+      applyState(data);
+      $("teamNames").value = (data.teams||[]).join("\n");
+      renderTeamSelect(); renderBoard(); renderMyArea();
+      toast("队名已保存");
+    } else {
+      toast((data.error||"保存失败") + (status===0?"":"（"+status+"）"), "error");
+    }
+  }
+
+  async function resetAll(){
+    const key = $("orgKey").value.trim();
+    if(!key){ toast("请先输入组织者密钥","error"); return; }
+    if(!confirm("确认重置全部抽签？")) return;
+    const { status, data } = await call("POST", { action: "reset", key });
+    if(status === 200){
+      localStorage.removeItem("fbb_myTeam"); myTeam = "";
+      applyState({ teams: data.teams, drawn: {}, allDrawn: false, autoTeams: [] });
+      $("teamNames").value = (data.teams||[]).join("\n");
+      renderTeamSelect(); renderBoard(); renderMyArea();
+      toast("已重置全部抽签");
+    } else {
+      toast((data.error||"重置失败") + (status===0?"":"（"+status+"）"), "error");
+    }
+  }
+
+  $("myTeam").addEventListener("change", renderMyArea);
+  refresh();
+  setInterval(refresh, 3000);
+</script>
+</body>
+</html>

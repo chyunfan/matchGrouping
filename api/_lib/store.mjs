@@ -5,6 +5,9 @@ import { defaultState } from "./draw.mjs";
 
 const KEY = "draw_state";
 const FALLBACK = "/tmp/draw_state.json";
+// 支持多个独立状态：默认 id=1（主页面），富阳页用 id=2，互不干扰
+function rk(id){ return id === 1 ? KEY : KEY + "_" + id; }
+function fpath(id){ return id === 1 ? FALLBACK : "/tmp/draw_state_" + id + ".json"; }
 let _redis = null;
 let _supa = null;
 
@@ -37,11 +40,11 @@ async function getRedis() {
   return _redis;
 }
 
-export async function getState() {
+export async function getState(id = 1) {
   const supa = getSupa();
   if (supa) {
     try {
-      const r = await fetch(`${supa.url}/rest/v1/draw_state?id=eq.1&select=*`, {
+      const r = await fetch(`${supa.url}/rest/v1/draw_state?id=eq.${id}&select=*`, {
         headers: { apikey: supa.key, Authorization: `Bearer ${supa.key}` },
       });
       if (r.ok) {
@@ -62,22 +65,22 @@ export async function getState() {
   const redis = await getRedis();
   if (redis) {
     try {
-      const s = await redis.get(KEY);
+      const s = await redis.get(rk(id));
       if (s) return s;
     } catch (e) { console.error("[store] Redis get failed:", e?.message); }
   }
   try {
-    if (fs.existsSync(FALLBACK)) return JSON.parse(fs.readFileSync(FALLBACK, "utf8"));
+    if (fs.existsSync(fpath(id))) return JSON.parse(fs.readFileSync(fpath(id), "utf8"));
   } catch {}
   return null;
 }
 
-export async function saveState(s) {
+export async function saveState(s, id = 1) {
   const supa = getSupa();
   if (supa) {
     try {
       const payload = {
-        id: 1,
+        id,
         teams: s.teams,
         drawn: s.drawn,
         all_drawn: s.allDrawn,
@@ -100,15 +103,15 @@ export async function saveState(s) {
   }
   const redis = await getRedis();
   if (redis) {
-    try { await redis.set(KEY, s); return; }
+    try { await redis.set(rk(id), s); return; }
     catch (e) { console.error("[store] Redis set failed:", e?.message); }
   }
-  try { fs.writeFileSync(FALLBACK, JSON.stringify(s)); }
+  try { fs.writeFileSync(fpath(id), JSON.stringify(s)); }
   catch (e) { console.error("[store] fallback write failed:", e?.message); }
 }
 
-export async function loadState() {
-  let s = await getState();
-  if (!s) { s = defaultState(); await saveState(s); }
+export async function loadState(id = 1) {
+  let s = await getState(id);
+  if (!s) { s = defaultState(); await saveState(s, id); }
   return s;
 }
