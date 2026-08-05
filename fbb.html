@@ -20,6 +20,11 @@
   .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;
     padding:16px 18px;box-shadow:var(--shadow);margin-bottom:16px}
   h2{font-size:16px;margin:0 0 10px;border-left:4px solid var(--brand);padding-left:10px}
+  summary{cursor:pointer;user-select:none;list-style:none;font-size:16px;font-weight:700;
+    border-left:4px solid var(--brand);padding-left:10px}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:" ▸";color:var(--brand2)}
+  details[open] summary::after{content:" ▾"}
   label{font-size:13px;color:var(--muted)}
   select,input[type=text],textarea{padding:9px 11px;border:1px solid var(--line);border-radius:9px;
     width:100%;font-size:16px;background:#fff;color:var(--ink);margin-top:4px}
@@ -135,22 +140,24 @@
   </div>
 </div>
 
-<div class="panel org">
-  <h2>⚙️ 组织者设置（需密钥）</h2>
-  <div class="row" style="margin-bottom:10px">
-    <div style="min-width:140px;flex:0 0 160px">
-      <label>组织者密钥：</label>
-      <input type="text" id="orgKey" placeholder="请输入密钥">
-      <div class="muted" style="margin-top:4px;font-size:12px">保存队名 / 重置全部抽签均须填写</div>
+<details class="panel org">
+  <summary>⚙️ 组织者设置（设置队名 / 重置，需密钥）</summary>
+  <div style="margin-top:12px">
+    <div class="row" style="margin-bottom:10px">
+      <div style="min-width:140px;flex:0 0 160px">
+        <label>组织者密钥：</label>
+        <input type="text" id="orgKey" placeholder="请输入密钥">
+        <div class="muted" style="margin-top:4px;font-size:12px">保存队名 / 重置全部抽签均须填写</div>
+      </div>
+    </div>
+    <label>队名（一行一个，或用逗号分隔）：</label>
+    <textarea id="teamNames" placeholder="一队&#10;二队&#10;三队&#10;四队&#10;五队"></textarea>
+    <div>
+      <button class="btn" onclick="setupTeams()">保存队名</button>
+      <button class="btn ghost" onclick="resetAll()">重置全部抽签</button>
     </div>
   </div>
-  <label>队名（一行一个，或用逗号分隔）：</label>
-  <textarea id="teamNames" placeholder="一队&#10;二队&#10;三队&#10;四队&#10;五队"></textarea>
-  <div>
-    <button class="btn" onclick="setupTeams()">保存队名</button>
-    <button class="btn ghost" onclick="resetAll()">重置全部抽签</button>
-  </div>
-</div>
+</details>
 
 <div class="toast" id="toast"></div>
 
